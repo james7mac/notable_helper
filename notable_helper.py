@@ -1,14 +1,15 @@
 #! python3
 # notable_helper.py keeps notes from notable sync'd on phone without header data
-# a TEST
 
-import os, logging, pickle, zipfile, datetime, send2trash, shutil
+import os, logging, pickle, zipfile, datetime, send2trash, shutil, time
 logging.basicConfig(level=logging.DEBUG)
 
-backup_folder = r'D:\Achive\_BACKUP\Notable'
+backup_folder = r'C:\_archive'
 backup_period = 14  #days
-original_folder = r'A:\Google Drive\Notable\notes'
-modified_folder = r'A:\Google Drive\Notable_phone\notes'
+original_folder = r'C:\Users\james\Google Drive\Notable\notes'
+modified_folder = r'C:\Users\james\Google Drive\System Files\Notable_Phone'
+note_bloc_folder = r'C:\Users\james\Google Drive\System Files\Notebloc'
+
 
 
 class Backup:
@@ -23,6 +24,9 @@ class Backup:
         date = datetime.datetime.now().strftime('%a%d%b')
         fileName = 'computerBackup_' + date
         path = os.path.join(self.backup_folder+ '\\' + os.path.basename(fileName) + '.zip')
+        if os.path.exists(path):
+            print('Backup for today already complete')
+            logging.debug('Logging file already exists: '+  path)
 
         compZip = zipfile.ZipFile(path, 'w')
         for file in os.listdir(self.computer_folder):
@@ -53,13 +57,41 @@ class Backup:
 
 
 class Note:
-    def __init__(self, note_path):
+    def __init__(self, note_path=None, title=None, tags=None, content=None):
         self.title = None
-        self.path = note_path
-        self.date_modified = os.path.getmtime(self.path)
-        self.content = open(note_path,encoding='utf-8').readlines()
-        for header_name, header_value in self.read_header().items():
-            setattr(self, header_name, header_value)
+        if note_path:
+            self.path = note_path
+            self.date_modified = os.path.getmtime(self.path)
+            self.content = open(note_path,encoding='utf-8').readlines()
+            for header_name, header_value in self.read_header().items():
+                setattr(self, header_name, header_value)
+        else:
+            self.path = original_folder
+            self.title = title
+            self.content = content
+            self.tags = tags
+            self.date_created = time.time()
+            self.date_modified = time.time()
+            self.new_note()
+
+    def new_note(self):
+        path = original_folder + '\\' + self.title + '.md'
+        header = '---\n'
+        if self.tags:
+            header = header + 'tags: ['
+            for tag in self.tags:
+                header = header + tag + ', '
+            header = header[:-2] + ']\n'
+        createddate = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.date_created))
+        modifieddate = time.strftime('%Y-%m-%d %H:%M:%S', time.localtime(self.date_modified))
+        header = header + 'title: ' + self.title + '\n'
+        header = header + 'created: ' + createddate + '\n'
+        header = header + 'modified: ' + modifieddate + '\n'
+        header = header + '---' + '\n'
+
+        with open(path, 'w') as file:
+            file.write(header)
+            file.write(self.content)
 
 
     def read_header(self):
@@ -72,7 +104,6 @@ class Note:
             header_name, header_data = header_line[:split_point], header_line[split_point:]
             if header_name != 'modified':
                 headers[header_name[:-1]] = header_data
-
 
         return headers
 
@@ -99,6 +130,10 @@ class Note:
             return other_note
         else:
             raise newestNoteError
+
+
+
+
 
 class newestNoteError(Exception):
     pass
@@ -161,13 +196,41 @@ class System:
                 shutil.copy(computer_note.path, phone_note.path)
                 logging.debug("COPYING: " + computer_note.path +'  to ' + phone_note.path)
 
+class notebloc_manage:
+    def __init__(self, notebloc_folder):
+        self.folder = notebloc_folder
+
+
+    def scan_notebloc(self):
+        subfolders = [f.path for f in os.scandir(self.folder) if f.is_dir()]
+        for folder in subfolders:
+            for file in os.listdir(folder):
+                path = os.path.join(self.folder, folder, file)
+
+                with open(path, 'r') as note:
+                    content = note.readlines()
+                #grab the first 7 words from the first line for the note title
+                title =  content[0].split()[:7]
+                title = ' '.join(title)
+                title = 'NB-  ' + title
+                content = ''.join(content)
+                Note(title=title, content=content, tags=['inbox/Notebloc'])
+
+
+
+
 
 
 
 if __name__ == '__main__':
+    now = time.time()
     manager = System(original_folder, modified_folder)
-    manager.replace_old_notes()
-
+    backup = Backup(original_folder, modified_folder, backup_folder)
+    backup.backup()
+    #manager.replace_old_notes()
+    #note = Note(title='TEST',content='THIS IS A TEST', tags=['TEST','ABC','123'])
+    notebloc = notebloc_manage(note_bloc_folder)
+    notebloc.scan_notebloc()
 
 
 
