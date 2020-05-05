@@ -4,13 +4,33 @@
 import os, logging, pickle, zipfile, datetime, send2trash, shutil, time
 logging.basicConfig(level=logging.DEBUG)
 
-backup_folder = r'C:\_archive'
-backup_period = 14  #days
-original_folder = r'C:\Users\james\Google Drive\Notable\notes'
-modified_folder = r'C:\Users\james\Google Drive\System Files\Notable_Phone'
-note_bloc_folder = r'C:\Users\james\Google Drive\System Files\Notebloc'
+
+backup_period = 14  # days
 
 
+
+def set_local_paths():
+    if os.environ['COMPUTERNAME'] == 'LAPTOP':
+        backup_folder = r'C:\_archive'
+        original_folder = r'C:\Users\james\Google Drive\Notable\notes'
+        modified_folder = r'C:\Users\james\Google Drive\System Files\Notable_Phone'
+        note_bloc_folder = r'C:\Users\james\Google Drive\System Files\Notebloc'
+        return backup_folder, original_folder, modified_folder, note_bloc_folder
+
+
+    elif os.environ['COMPUTERNAME'] == 'JAMESPC':
+        backup_folder = r'D:\Achive\_BACKUP\Notable'
+        original_folder = r'A:\Google Drive\Notable\notes'
+        modified_folder = r'A:\Google Drive\System Files\Notable_Phone'
+        note_bloc_folder = r'A:\Google Drive\System Files\Notebloc'
+        return backup_folder, original_folder, modified_folder, note_bloc_folder
+
+    else:
+        raise computernameUnknownError
+
+
+class computernameUnknownError(Exception):
+    pass
 
 class Backup:
     def __init__(self, computer_folder, phone_folder, backup_folder):
@@ -30,7 +50,6 @@ class Backup:
 
         compZip = zipfile.ZipFile(path, 'w')
         for file in os.listdir(self.computer_folder):
-            #print('compressing:' + file)
             zip_path = self.computer_folder + '\\' + file
             compZip.write(zip_path, file, compress_type=zipfile.ZIP_DEFLATED)
         compZip.close()
@@ -215,15 +234,12 @@ class notebloc_manage:
                 title = 'NB-  ' + title
                 content = ''.join(content)
                 Note(title=title, content=content, tags=['inbox/Notebloc'])
-
-
-
-
+        send2trash.send2trash(folder)
 
 
 
 if __name__ == '__main__':
-    now = time.time()
+    backup_folder, original_folder, modified_folder, note_bloc_folder = set_local_paths()
     manager = System(original_folder, modified_folder)
     backup = Backup(original_folder, modified_folder, backup_folder)
     backup.backup()
