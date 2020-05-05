@@ -1,5 +1,6 @@
 #! python3
 # notable_helper.py keeps notes from notable sync'd on phone without header data
+# a TEST
 
 import os, logging, pickle, zipfile, datetime, send2trash, shutil
 logging.basicConfig(level=logging.DEBUG)
